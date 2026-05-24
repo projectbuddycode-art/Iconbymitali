@@ -15,10 +15,25 @@ if (supabaseUrl && supabaseKey) {
   }
 } else {
   console.warn('⚠️ Supabase credentials not configured. Frontend will work without backend.');
-  // Create a mock client that doesn't throw errors
+  // Create a mock client that includes all necessary methods
   supabase = {
-    from: () => ({ select: async () => ({ data: [], error: null }) }),
-    auth: { user: null }
+    from: () => ({
+      select: async () => ({ data: [], error: null }),
+      insert: async () => ({ data: [], error: null }),
+      update: async () => ({ data: [], error: null }),
+      delete: async () => ({ data: [], error: null }),
+    }),
+    auth: {
+      user: null,
+      onAuthStateChange: (callback) => {
+        // Return unsubscribe function
+        return { data: { subscription: { unsubscribe: () => {} } } };
+      },
+      signInWithPassword: async () => ({ data: null, error: { message: 'Auth not configured' } }),
+      signUp: async () => ({ data: null, error: { message: 'Auth not configured' } }),
+      signOut: async () => ({ error: null }),
+      getSession: async () => ({ data: null, error: null }),
+    },
   };
 }
 
