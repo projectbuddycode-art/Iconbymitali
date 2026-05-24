@@ -31,7 +31,7 @@ export default defineConfig({
         // Split code into chunks for better caching
         manualChunks: {
           'vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-carousel'],
+          'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
           'animation': ['framer-motion'],
           'query': ['@tanstack/react-query'],
         },
