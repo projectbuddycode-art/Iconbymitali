@@ -28,13 +28,23 @@
 
 ---
 
-## 👤 ADMIN USER
+## 👤 ADMIN USERS
 
+### Admin 1
 | Item | Value |
 |------|-------|
 | Email | `ddubey7112@gmail.com` |
 | Role | admin |
-| Status | ⏳ Needs to be created in Supabase |
+| Status | ✅ Active |
+| Access Level | Full admin dashboard access |
+
+### Admin 2 (Mitali)
+| Item | Value |
+|------|-------|
+| Email | `iconbymd@gmail.com` |
+| Password | `AsIconicasyou!` |
+| Role | admin |
+| Status | ⏳ Ready to add (see ADD_ADMIN_ICONBYMD.md) |
 | Access Level | Full admin dashboard access |
 
 ---
