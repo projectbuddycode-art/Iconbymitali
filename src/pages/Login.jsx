@@ -89,12 +89,18 @@ export default function Login() {
         // Manually refresh auth check after sign-in
         await checkUserAuth();
 
+        // Show success message briefly
         setSuccessMessage('✓ Signed in successfully!');
         
-        // Small delay for state to settle before redirect
+        // Immediate redirect without waiting for message to clear
+        // This prevents the blank screen issue
         setTimeout(() => {
-          setSuccessMessage('');
-        }, 500);
+          if (isAdmin) {
+            navigate('/admin', { replace: true });
+          } else {
+            navigate('/', { replace: true });
+          }
+        }, 100);
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'An error occurred';

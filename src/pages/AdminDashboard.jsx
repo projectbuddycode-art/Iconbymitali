@@ -13,23 +13,58 @@ import KnitwearTab from "../components/admin/KnitwearTab";
 import CouponsTab from "../components/admin/CouponsTab";
 
 export default function AdminDashboard() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout, isLoadingAuth, authChecked } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check admin status
-    if (!isAdmin) {
-      navigate("/");
+    // Wait for auth to be checked before validating admin status
+    if (!authChecked || isLoadingAuth) {
       return;
     }
+
+    // Check admin status
+    if (!isAdmin) {
+      navigate("/", { replace: true });
+      return;
+    }
+    
     setIsLoading(false);
-  }, [isAdmin, navigate]);
+  }, [isAdmin, authChecked, isLoadingAuth, navigate]);
 
   const handleLogout = async () => {
     await logout();
-    navigate("/");
+    navigate("/", { replace: true });
   };
+
+  // Show loading while checking auth
+  if (!authChecked || isLoadingAuth) {
+    return (
+      <div className="min-h-screen pt-32 pb-16 bg-[#F9F7F4] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#B9744A] mx-auto mb-4"></div>
+          <p className="text-[#414A37]">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user is admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen pt-32 pb-16 bg-[#F9F7F4] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <h1 className="text-3xl font-bold text-[#414A37] mb-4">Access Denied</h1>
+          <p className="text-[#414A37]/60 mb-6">
+            You don't have admin privileges to access this page.
+          </p>
+          <a href="/" className="inline-block px-6 py-2 bg-[#B9744A] text-white rounded-lg hover:bg-[#a5663f] transition-colors">
+            Go Back Home
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
