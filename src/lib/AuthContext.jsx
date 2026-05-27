@@ -21,9 +21,9 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoadingAuth(true);
       
-      // Create a timeout promise that rejects after 10 seconds
+      // Create a timeout promise that rejects after 2 seconds for faster page load
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Auth check timeout')), 10000)
+        setTimeout(() => reject(new Error('Auth check timeout')), 2000)
       );
 
       // Race between actual auth check and timeout
