@@ -138,7 +138,7 @@ export default function FeaturedCollections() {
                   {/* Info Overlay */}
                   <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/70 to-transparent">
                     <p className="text-[#DBC2A6] text-xs uppercase tracking-wider mb-1">
-                      {item.collection}
+                      {item.collections?.name || "Featured"}
                     </p>
                     <h3 
                       className="text-white text-xl"
@@ -166,7 +166,7 @@ export default function FeaturedCollections() {
               />
               <div className="p-8 flex flex-col justify-center">
                 <p className="text-[#B9744A] text-sm uppercase tracking-wider mb-2">
-                  {selectedImage.collection}
+                  {selectedImage.collections?.name || selectedImage.collection}
                 </p>
                 <h3 
                   className="text-3xl text-[#414A37] mb-4"

@@ -173,7 +173,7 @@ export default function FeaturedCollectionsExact() {
                   {/* Collection Badge */}
                   <div className="absolute top-4 left-4">
                     <span className="bg-[#b2985d] text-white text-xs uppercase tracking-wider px-3 py-1 rounded-full shadow-lg">
-                      {item.collection}
+                      {item.collections?.name || "Collection"}
                     </span>
                   </div>
 
