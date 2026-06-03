@@ -1,0 +1,74 @@
+{
+  "name": "Shipment",
+  "type": "object",
+  "properties": {
+    "order_id": {
+      "type": "string",
+      "description": "Foreign key to the Order entity (Order.id)"
+    },
+    "order_number": {
+      "type": "string",
+      "description": "Human-readable order number (e.g., ICON-12345678)"
+    },
+    "shiprocket_order_id": {
+      "type": "string",
+      "description": "Shiprocket internal order ID"
+    },
+    "awb_code": {
+      "type": "string",
+      "description": "Air Waybill (AWB) tracking number from Shiprocket"
+    },
+    "courier_name": {
+      "type": "string",
+      "description": "Name of the courier service (e.g., Delhivery, BlueDart)"
+    },
+    "tracking_url": {
+      "type": "string",
+      "description": "URL for tracking this shipment"
+    },
+    "invoice_url": {
+      "type": "string",
+      "description": "URL of the generated invoice PDF"
+    },
+    "shipment_status": {
+      "type": "string",
+      "enum": [
+        "created",
+        "manifested",
+        "picked_up",
+        "in_transit",
+        "delivered",
+        "rto",
+        "cancelled"
+      ],
+      "default": "created",
+      "description": "Current status of the shipment"
+    }
+  },
+  "required": [
+    "order_id",
+    "shipment_status"
+  ],
+  "rls": {
+    "create": {},
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "version": "1.8.0",
+  "project_id": "your-project-id",
+  "api": {
+    "port": 54321,
+    "schemas": ["public", "graphql_public"],
+    "db": {
+      "major_version": 15
+    },
+    "realtime": {
+      "enabled": true,
+      "max_bytes_per_second": 1000000
+    },
+    "logLevel": "info"
+  },
+  "auth": {
+    "site_url": "http://localhost:3000",
+    "additional_redirect_urls": [
+      "https://your-domain.com",
+      "https://your-domain.com/auth/callback"
+    ],
+    "jwt_expiry": 3600,
+    "enable_signup": true,
+    "email": {
+      "enable_confirmations": false
+    }
+  },
+  "db": {
+    "seed": "seed.sql"
+  },
+  "realtime": {
+    "enabled": true,
+    "max_bytes_per_second": 1000000,
+    "log_level": "info"
+  },
+  "edge_runtime": {
+    "policy": "wasm"
+  },
+  "functions": [
+    {
+      "id": "razorpay-create-order",
+      "verify_jwt": false,
+      "import_map": "./import_map.json"
+    },
+    {
+      "id": "razorpay-verify-payment",
+      "verify_jwt": false,
+      "import_map": "./import_map.json"
+    },
+    {
+      "id": "razorpay-webhook",
+      "verify_jwt": false,
+      "import_map": "./import_map.json"
+    },
+    {
+      "id": "shiprocket-create-order",
+      "verify_jwt": false,
+      "import_map": "./import_map.json"
+    },
+    {
+      "id": "shiprocket-track",
+      "verify_jwt": false,
+      "import_map": "./import_map.json"
+    },
+    {
+      "id": "get-shipment-details",
+      "verify_jwt": false,
+      "import_map": "./import_map.json"
+    }
+  ]
+}
