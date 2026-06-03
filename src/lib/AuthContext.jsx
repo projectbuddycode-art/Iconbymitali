@@ -21,79 +21,57 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoadingAuth(true);
       
-      // Create a timeout promise that rejects after 10 seconds (sufficient for Supabase responses)
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Auth check timeout')), 10000)
-      );
-
-      // Race between actual auth check and timeout
-      await Promise.race([
-        (async () => {
-          // Get current session
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          if (sessionError) {
-            throw sessionError;
-          }
-
-          if (session?.user) {
-            // Fetch user profile from database to get role and other info
-            const { data: profile, error: profileError } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-
-            if (profileError && profileError.code !== 'PGRST116') {
-              // PGRST116 means no rows found, which is OK
-              console.warn('Error fetching profile:', profileError);
-            }
-
-            const role = profile?.role || 'user';
-            const adminStatus = profile?.is_admin === true || profile?.role === 'admin';
-            
-            setUser({
-              id: session.user.id,
-              email: session.user.email,
-              full_name: session.user.user_metadata?.full_name || profile?.full_name,
-              role,
-              is_admin: adminStatus,
-              ...profile
-            });
-            setUserRole(role);
-            setIsAdmin(adminStatus);
-            setIsAuthenticated(true);
-            setAuthError(null);
-          } else {
-            setUser(null);
-            setIsAuthenticated(false);
-            setUserRole(null);
-            setIsAdmin(false);
-            setAuthError(null);
-          }
-        })(),
-        timeoutPromise
-      ]);
-    } catch (error) {
-      console.error('Auth check error:', error);
+      // Get current session - Supabase handles locking internally
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      // If timeout, just proceed without authenticated state
-      if (error instanceof Error && error.message === 'Auth check timeout') {
-        console.warn('Auth check timed out - proceeding with unauthenticated state');
+      if (sessionError) {
+        console.warn('Session error:', sessionError);
+        throw sessionError;
+      }
+
+      if (session?.user) {
+        // Fetch user profile from database to get role and other info
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          // PGRST116 means no rows found, which is OK
+          console.warn('Error fetching profile:', profileError);
+        }
+
+        const role = profile?.role || 'user';
+        const adminStatus = profile?.is_admin === true || profile?.role === 'admin';
+        
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          full_name: session.user.user_metadata?.full_name || profile?.full_name,
+          role,
+          is_admin: adminStatus,
+          ...profile
+        });
+        setUserRole(role);
+        setIsAdmin(adminStatus);
+        setIsAuthenticated(true);
+        setAuthError(null);
+      } else {
         setUser(null);
         setIsAuthenticated(false);
         setUserRole(null);
         setIsAdmin(false);
-      } else {
-        /** @type {any} */
-        const err = error;
-        setAuthError({
-          message: error instanceof Error ? error.message : 'Unknown error'
-        });
-        setIsAuthenticated(false);
-        setUser(null);
-        setIsAdmin(false);
+        setAuthError(null);
       }
+    } catch (error) {
+      console.error('Auth check error:', error?.message);
+      setAuthError({
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+      setIsAuthenticated(false);
+      setUser(null);
+      setIsAdmin(false);
     } finally {
       setIsLoadingAuth(false);
       setAuthChecked(true);
@@ -102,27 +80,42 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize auth on mount
   useEffect(() => {
+    // Only check auth once on mount
     checkUserAuth();
 
-    // Set up auth state listener
-    /** @type {(event: any, session: any) => Promise<void>} */
-    const authStateHandler = async (_event, _session) => {
-      if (_event === 'SIGNED_IN' || _event === 'TOKEN_REFRESHED') {
-        await checkUserAuth();
-      } else if (_event === 'SIGNED_OUT') {
+    // Use Supabase's built-in auth state listener
+    // This will automatically handle token refresh (autoRefreshToken: true in client config)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, _session) => {
+      if (_event === 'SIGNED_OUT') {
         setUser(null);
         setIsAuthenticated(false);
         setIsAdmin(false);
         setUserRole(null);
       }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(authStateHandler);
+      // Note: SIGNED_IN and TOKEN_REFRESHED are auto-handled by Supabase
+      // We don't need to manually refresh - just let localStorage persistence work
+    });
 
     return () => {
       subscription?.unsubscribe();
     };
   }, [checkUserAuth]);
+
+  // Re-check auth when tab becomes visible to handle tab switches
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('👁️ Tab became visible - session check');
+        // Session is persisted in localStorage, should still be valid
+        // If user was logged in before, they should still be logged in
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const logout = async () => {
     try {

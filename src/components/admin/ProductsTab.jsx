@@ -38,6 +38,48 @@ export default function ProductsTab() {
 
   const queryClient = useQueryClient();
 
+  // Save form data to localStorage whenever it changes
+  useEffect(() => {
+    if (isModalOpen && !editingProduct) {
+      // Only auto-save for new products, not for editing
+      localStorage.setItem('product-form-draft', JSON.stringify(formData));
+    }
+  }, [formData, isModalOpen, editingProduct]);
+
+  // Restore form data from localStorage when opening modal for new product
+  useEffect(() => {
+    if (isModalOpen && !editingProduct) {
+      const savedDraft = localStorage.getItem('product-form-draft');
+      if (savedDraft) {
+        try {
+          const draft = JSON.parse(savedDraft);
+          // Only restore if we haven't already (avoid overwriting current form)
+          if (JSON.stringify(formData) === JSON.stringify({
+            name: "",
+            description: "",
+            price: "",
+            original_price: "",
+            category: "knitwear",
+            collection_id: null,
+            images: [],
+            videos: [],
+            sizes: ["XS", "S", "M", "L", "XL"],
+            size_chart_image_url: "",
+            stock: 0,
+            featured: false,
+            show_in_lookbook: false,
+            related_products: []
+          })) {
+            console.log('Restoring product form draft from localStorage');
+            setFormData(draft);
+          }
+        } catch (err) {
+          console.warn('Failed to restore form draft:', err);
+        }
+      }
+    }
+  }, [isModalOpen]);
+
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["admin-products"],
     queryFn: () => adminProducts.list()
@@ -81,22 +123,47 @@ export default function ProductsTab() {
       });
     } else {
       setEditingProduct(null);
-      setFormData({
-        name: "",
-        description: "",
-        price: "",
-        original_price: "",
-        category: "knitwear",
-        collection_id: null,
-        images: [],
-        videos: [],
-        sizes: ["XS", "S", "M", "L", "XL"],
-        size_chart_image_url: "",
-        stock: 0,
-        featured: false,
-        show_in_lookbook: false,
-        related_products: []
-      });
+      // Try to restore draft for new product
+      const savedDraft = localStorage.getItem('product-form-draft');
+      if (savedDraft) {
+        try {
+          setFormData(JSON.parse(savedDraft));
+        } catch (err) {
+          setFormData({
+            name: "",
+            description: "",
+            price: "",
+            original_price: "",
+            category: "knitwear",
+            collection_id: null,
+            images: [],
+            videos: [],
+            sizes: ["XS", "S", "M", "L", "XL"],
+            size_chart_image_url: "",
+            stock: 0,
+            featured: false,
+            show_in_lookbook: false,
+            related_products: []
+          });
+        }
+      } else {
+        setFormData({
+          name: "",
+          description: "",
+          price: "",
+          original_price: "",
+          category: "knitwear",
+          collection_id: null,
+          images: [],
+          videos: [],
+          sizes: ["XS", "S", "M", "L", "XL"],
+          size_chart_image_url: "",
+          stock: 0,
+          featured: false,
+          show_in_lookbook: false,
+          related_products: []
+        });
+      }
     }
     setIsModalOpen(true);
   };
@@ -201,6 +268,9 @@ export default function ProductsTab() {
         await adminProducts.create(productData);
       }
 
+      // Clear form draft from localStorage after successful save
+      localStorage.removeItem('product-form-draft');
+      
       queryClient.invalidateQueries(["admin-products"]);
       setIsModalOpen(false);
     } catch (error) {
