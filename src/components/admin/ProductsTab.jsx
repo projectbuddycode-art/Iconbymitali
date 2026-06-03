@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { adminProducts } from "@/api/supabaseAdmin";
+import { adminProducts, adminCollections } from "@/api/supabaseAdmin";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Upload, X, Image, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,13 +17,15 @@ export default function ProductsTab() {
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [collections, setCollections] = useState([]);
+  const [saveError, setSaveError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
     original_price: "",
     category: "knitwear",
-    collection: "",
+    collection_id: null,
     images: [],
     videos: [],
     sizes: ["XS", "S", "M", "L", "XL"],
@@ -41,7 +43,24 @@ export default function ProductsTab() {
     queryFn: () => adminProducts.list()
   });
 
+  // Load collections on component mount
+  useEffect(() => {
+    loadCollections();
+  }, []);
+
+  const loadCollections = async () => {
+    try {
+      const data = await adminCollections.list();
+      setCollections(data || []);
+    } catch (error) {
+      console.error("Failed to load collections:", error);
+      setSaveError("Failed to load collections");
+    }
+  };
+
   const openModal = (product = null) => {
+    setSaveError("");
+    setUploadError("");
     if (product) {
       setEditingProduct(product);
       setFormData({
@@ -50,7 +69,7 @@ export default function ProductsTab() {
         price: product.price,
         original_price: product.original_price || "",
         category: product.category,
-        collection: product.collection || "",
+        collection_id: product.collection_id || null,
         images: product.images || [],
         videos: product.videos || [],
         sizes: product.sizes || ["XS", "S", "M", "L", "XL"],
@@ -68,7 +87,7 @@ export default function ProductsTab() {
         price: "",
         original_price: "",
         category: "knitwear",
-        collection: "",
+        collection_id: null,
         images: [],
         videos: [],
         sizes: ["XS", "S", "M", "L", "XL"],
@@ -153,6 +172,22 @@ export default function ProductsTab() {
 
   const saveProduct = async () => {
     try {
+      setSaveError("");
+      
+      // Validate form
+      if (!formData.name) {
+        setSaveError("Product name is required");
+        return;
+      }
+      if (!formData.price) {
+        setSaveError("Selling price is required");
+        return;
+      }
+      if (formData.collection_id === null) {
+        setSaveError("Collection is required");
+        return;
+      }
+
       const productData = {
         ...formData,
         price: parseFloat(formData.price),
@@ -169,7 +204,7 @@ export default function ProductsTab() {
       queryClient.invalidateQueries(["admin-products"]);
       setIsModalOpen(false);
     } catch (error) {
-      setUploadError("Error saving product: " + error.message);
+      setSaveError("Error saving product: " + error.message);
     }
   };
 
@@ -285,6 +320,11 @@ export default function ProductsTab() {
           </DialogHeader>
 
           <div className="space-y-6 py-4">
+            {saveError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                {saveError}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <Label>Product Name</Label>
@@ -349,12 +389,21 @@ export default function ProductsTab() {
               </div>
               <div>
                 <Label>Collection</Label>
-                <Input
-                  value={formData.collection}
-                  onChange={(e) => setFormData({ ...formData, collection: e.target.value })}
-                  placeholder="e.g., Second Skin"
-                  className="mt-1"
-                />
+                <Select
+                  value={formData.collection_id ? String(formData.collection_id) : ""}
+                  onValueChange={(v) => setFormData({ ...formData, collection_id: v ? parseInt(v) : null })}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select a collection" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {collections.map((col) => (
+                      <SelectItem key={col.id} value={String(col.id)}>
+                        {col.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
