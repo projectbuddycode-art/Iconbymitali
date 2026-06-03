@@ -1,0 +1,31 @@
+{
+  "name": "KnitwearItem",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Item title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description"
+    },
+    "image": {
+      "type": "string",
+      "description": "Image URL"
+    },
+    "collection": {
+      "type": "string",
+      "description": "Collection badge label (e.g. Knitwear, Resort)"
+    },
+    "sort_order": {
+      "type": "number",
+      "description": "Display order (lower = first)"
+    }
+  },
+  "required": [
+    "title",
+    "image",
+    "collection"
+  ]
+}
