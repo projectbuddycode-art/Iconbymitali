@@ -298,6 +298,74 @@ export const adminCoupons = {
   }
 };
 
+// ============= COLLECTIONS =============
+
+export const adminCollections = {
+  async list() {
+    const { data, error } = await supabase
+      .from('collections')
+      .select('*')
+      .order('display_order', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async get(id) {
+    const { data, error } = await supabase
+      .from('collections')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async create(collectionData) {
+    const { data, error } = await supabase
+      .from('collections')
+      .insert([{
+        ...collectionData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async update(id, collectionData) {
+    const { data, error } = await supabase
+      .from('collections')
+      .update({
+        ...collectionData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async delete(id) {
+    const { error } = await supabase
+      .from('collections')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+
+  async toggleActive(id, isActive) {
+    return this.update(id, { is_active: isActive });
+  }
+};
+
 // ============= KNITWEAR ITEMS =============
 
 export const adminKnitwearItems = {

@@ -35,10 +35,11 @@ ADD COLUMN IF NOT EXISTS related_products JSONB DEFAULT '[]'::jsonb,
 ADD COLUMN IF NOT EXISTS videos JSONB DEFAULT '[]'::jsonb;
 
 -- ============================================================================
--- TABLE 3: KNITWEAR ITEMS (ADD collection_id FK)
+-- TABLE 3: KNITWEAR ITEMS (ADD collection_id FK) - OPTIONAL
 -- ============================================================================
-ALTER TABLE IF EXISTS knitwear_items 
-ADD COLUMN IF NOT EXISTS collection_id BIGINT REFERENCES collections(id) ON DELETE SET NULL;
+-- Note: If knitwear_items table exists, uncomment the line below
+-- ALTER TABLE IF EXISTS knitwear_items 
+-- ADD COLUMN IF NOT EXISTS collection_id BIGINT REFERENCES collections(id) ON DELETE SET NULL;
 
 -- ============================================================================
 -- INDEXES (for performance)
@@ -46,18 +47,19 @@ ADD COLUMN IF NOT EXISTS collection_id BIGINT REFERENCES collections(id) ON DELE
 CREATE INDEX IF NOT EXISTS products_collection_id_idx ON products(collection_id);
 CREATE INDEX IF NOT EXISTS products_featured_idx ON products(featured);
 CREATE INDEX IF NOT EXISTS collections_is_active_idx ON collections(is_active);
-CREATE INDEX IF NOT EXISTS knitwear_items_collection_id_idx ON knitwear_items(collection_id);
+-- CREATE INDEX IF NOT EXISTS knitwear_items_collection_id_idx ON knitwear_items(collection_id);
 
 -- ============================================================================
 -- INSERT DEFAULT COLLECTIONS
 -- ============================================================================
+DELETE FROM collections WHERE name IN ('Second Skin', 'Urban Elegance', 'Seasonal Essentials', 'Limited Edition');
+
 INSERT INTO collections (name, description, display_order, is_active) 
 VALUES 
   ('Second Skin', 'Comfortable and breathable everyday wear', 1, TRUE),
   ('Urban Elegance', 'Contemporary designs for modern style', 2, TRUE),
   ('Seasonal Essentials', 'Collection for all seasons', 3, TRUE),
-  ('Limited Edition', 'Exclusive and limited availability pieces', 4, TRUE)
-ON CONFLICT (name) DO NOTHING;
+  ('Limited Edition', 'Exclusive and limited availability pieces', 4, TRUE);
 
 -- ============================================================================
 -- MIGRATION LOG
@@ -82,14 +84,14 @@ ON CONFLICT (name) DO NOTHING;
 -- ============================================================================
 ALTER TABLE collections ENABLE ROW LEVEL SECURITY;
 
--- Collections readable by everyone
-CREATE POLICY IF NOT EXISTS "Collections are readable by everyone" ON collections
+-- Drop existing policies if they exist (PostgreSQL doesn't support IF NOT EXISTS for policies)
+DROP POLICY IF EXISTS "Collections are readable by everyone" ON collections;
+DROP POLICY IF EXISTS "All authenticated users can read collections" ON collections;
+
+-- Collections readable by everyone when active
+CREATE POLICY "Collections are readable by everyone" ON collections
   FOR SELECT USING (is_active = true);
 
--- Only authenticated users can read collections
-CREATE POLICY IF NOT EXISTS "All authenticated users can read collections" ON collections
+-- Authenticated users can also read all collections
+CREATE POLICY "All authenticated users can read collections" ON collections
   FOR SELECT USING (auth.role() = 'authenticated');
-
--- Admin users can manage collections
--- This assumes admin users have a custom claim or role
--- Adjust based on your actual admin identification method

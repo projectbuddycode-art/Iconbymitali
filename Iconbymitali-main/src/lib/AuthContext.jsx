@@ -58,9 +58,9 @@ export const AuthProvider = ({ children }) => {
     try {
       if (!skipLoading) setIsLoadingAuth(true);
       
-      // Create a timeout promise that rejects after 2 seconds for faster page load
+      // Create a timeout promise that rejects after 10 seconds (sufficient for Supabase responses)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Auth check timeout')), 2000)
+        setTimeout(() => reject(new Error('Auth check timeout')), 10000)
       );
 
       // Race between actual auth check and timeout
