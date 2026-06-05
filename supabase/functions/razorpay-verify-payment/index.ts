@@ -127,6 +127,7 @@ Deno.serve(async (req) => {
           shipping_address: orderData.shipping_address,
           items: orderData.items,
           total_amount: orderData.total_amount,
+          notes: orderData.notes || null,
           razorpay_order_id: razorpay_order_id,
           razorpay_payment_id: razorpay_payment_id,
           status: "payment_confirmed",
