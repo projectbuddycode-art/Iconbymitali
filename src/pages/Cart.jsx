@@ -135,12 +135,37 @@ export default function Cart() {
     // Create Razorpay order via backend
     let rzpOrder;
     try {
-      const res = await supabase.functions.invoke("razorpay-create-order", { body: { amount: total } });
-      rzpOrder = res.data;
-      if (!rzpOrder?.order_id || !rzpOrder?.key_id) {
-        throw new Error(rzpOrder?.error || "Invalid order response from payment gateway");
+      console.log('💳 Calling razorpay-create-order with amount:', total);
+      
+      const res = await supabase.functions.invoke("razorpay-create-order", { 
+        body: { amount: total } 
+      });
+
+      console.log('💳 Razorpay function response:', res);
+      
+      // Handle both direct response and wrapped response
+      rzpOrder = res.data || res;
+      
+      console.log('💳 Extracted order data:', rzpOrder);
+      
+      // Check for errors
+      if (rzpOrder?.error) {
+        throw new Error(rzpOrder.error);
       }
+      
+      if (!rzpOrder?.order_id) {
+        console.error('❌ Missing order_id in response:', rzpOrder);
+        throw new Error(`Invalid order response: missing order_id. Got: ${JSON.stringify(rzpOrder)}`);
+      }
+      
+      if (!rzpOrder?.key_id) {
+        console.error('❌ Missing key_id in response:', rzpOrder);
+        throw new Error(`Invalid order response: missing key_id. Got: ${JSON.stringify(rzpOrder)}`);
+      }
+      
+      console.log('✅ Order created successfully:', rzpOrder.order_id);
     } catch (err) {
+      console.error('❌ Payment initiation error:', err);
       setPaymentError("Could not initiate payment: " + err.message);
       setIsSubmitting(false);
       return;
@@ -177,6 +202,8 @@ export default function Cart() {
       handler: async (response) => {
         restoreAlert();
         try {
+          console.log('🔐 Verifying payment with signature:', response.razorpay_signature);
+          
           const verifyRes = await supabase.functions.invoke("razorpay-verify-payment", {
             body: {
               razorpay_order_id: response.razorpay_order_id,
@@ -186,19 +213,32 @@ export default function Cart() {
             }
           });
 
-          const data = verifyRes.data;
+          console.log('🔐 Verification response:', verifyRes);
+          
+          // Handle both direct response and wrapped response
+          const data = verifyRes.data || verifyRes;
+          
+          console.log('🔐 Extracted verification data:', data);
+
+          if (data?.error) {
+            throw new Error(data.error);
+          }
 
           if (data?.payment_verified && data?.order_saved) {
+            console.log('✅ Payment verified and order saved!');
             setOrderNumber(data.order_number);
             if (data?.shiprocket_awb) setShiprocketAwb(data.shiprocket_awb);
             updateCart([]);
             setStep("success");
           } else if (data?.payment_verified && !data?.order_saved) {
+            console.warn('⚠️ Payment verified but order save failed:', data);
             setPaymentError("Payment successful but order save failed. Please contact support with payment ID: " + response.razorpay_payment_id);
           } else {
+            console.error('❌ Payment verification returned unexpected status:', data);
             setPaymentError(data?.error || "Payment verification failed. Please contact support.");
           }
         } catch (err) {
+          console.error('❌ Payment handler error:', err);
           setPaymentError("Payment processing error. If amount was deducted, contact support with payment ID: " + response.razorpay_payment_id);
         }
         setIsSubmitting(false);
