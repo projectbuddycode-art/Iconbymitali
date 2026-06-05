@@ -8,7 +8,7 @@ import ShiprocketTracker from "@/components/tracking/ShiprocketTracker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/api/supabaseClient";
 
 // Load Razorpay script dynamically
 function loadRazorpayScript() {
@@ -135,7 +135,7 @@ export default function Cart() {
     // Create Razorpay order via backend
     let rzpOrder;
     try {
-      const res = await base44.functions.invoke("razorpayCreateOrder", { amount: total });
+      const res = await supabase.functions.invoke("razorpay-create-order", { body: { amount: total } });
       rzpOrder = res.data;
       if (!rzpOrder?.order_id || !rzpOrder?.key_id) {
         throw new Error(rzpOrder?.error || "Invalid order response from payment gateway");
@@ -177,11 +177,13 @@ export default function Cart() {
       handler: async (response) => {
         restoreAlert();
         try {
-          const verifyRes = await base44.functions.invoke("razorpayVerifyPayment", {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            orderData: capturedOrderData,
+          const verifyRes = await supabase.functions.invoke("razorpay-verify-payment", {
+            body: {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderData: capturedOrderData,
+            }
           });
 
           const data = verifyRes.data;

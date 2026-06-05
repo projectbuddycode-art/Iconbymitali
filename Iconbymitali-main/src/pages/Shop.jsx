@@ -41,22 +41,29 @@ export default function Shop() {
   ];
 
   const priceRanges = [
-    { value: "all", label: "All Prices" },
-    { value: "under15k", label: "Under ₹15,000" },
-    { value: "15to20k", label: "₹15,000 - ₹20,000" },
-    { value: "over20k", label: "Over ₹20,000" },
-  ];
+  { value: "all", label: "All Prices" },
+  { value: "under1500", label: "Under ₹1,500" },
+  { value: "1500to2200", label: "₹1,500 - ₹2,200" },
+  { value: "over2200", label: "Over ₹2,200" },
+];
 
-  const filteredProducts = products.filter((product) => {
-    const categoryMatch =
-      selectedCategory === "all" || product.category === selectedCategory;
-    let priceMatch = true;
-    if (selectedPriceRange === "under15k") priceMatch = product.price < 15000;
-    else if (selectedPriceRange === "15to20k")
-      priceMatch = product.price >= 15000 && product.price <= 20000;
-    else if (selectedPriceRange === "over20k") priceMatch = product.price > 20000;
-    return categoryMatch && priceMatch;
-  });
+const filteredProducts = products.filter((product) => {
+  const categoryMatch =
+    selectedCategory === "all" ||
+    product.category === selectedCategory;
+
+  let priceMatch = true;
+
+  if (selectedPriceRange === "under1500") {
+    priceMatch = product.price < 1500;
+  } else if (selectedPriceRange === "1500to2200") {
+    priceMatch = product.price >= 1500 && product.price <= 2200;
+  } else if (selectedPriceRange === "over2200") {
+    priceMatch = product.price > 2200;
+  }
+
+  return categoryMatch && priceMatch;
+});
 
   return (
     <div className="min-h-screen">
