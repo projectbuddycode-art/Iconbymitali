@@ -137,6 +137,11 @@ export default function Cart() {
     try {
       console.log('💳 Calling razorpay-create-order with amount:', total);
       
+      // Verify supabase client is properly initialized
+      if (!supabase || !supabase.functions || !supabase.functions.invoke) {
+        throw new Error('Supabase client not properly initialized. Check that VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env.local');
+      }
+      
       const res = await supabase.functions.invoke("razorpay-create-order", { 
         body: { amount: total } 
       });
