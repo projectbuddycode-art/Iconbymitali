@@ -1,12 +1,20 @@
 import Razorpay from 'npm:razorpay@2.9.6';
 
-const razorpay = new Razorpay({
-  key_id: Deno.env.get("RAZORPAY_KEY_ID"),
-  key_secret: Deno.env.get("RAZORPAY_KEY_SECRET"),
-});
-
 Deno.serve(async (req) => {
   try {
+    const keyId = Deno.env.get("RAZORPAY_KEY_ID");
+    const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+
+    if (!keyId || !keySecret) {
+      console.error("Razorpay credentials missing: KEY_ID=" + !!keyId + ", KEY_SECRET=" + !!keySecret);
+      return Response.json({ error: "Payment gateway not configured" }, { status: 500 });
+    }
+
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+
     const { amount } = await req.json();
 
     if (!amount || typeof amount !== "number" || amount <= 0) {
@@ -17,14 +25,6 @@ Deno.serve(async (req) => {
     const amountInPaise = Math.round(amount * 100);
     if (amountInPaise < 100) {
       return Response.json({ error: "Order amount too low. Minimum is ₹1." }, { status: 400 });
-    }
-
-    const keyId = Deno.env.get("RAZORPAY_KEY_ID");
-    const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
-
-    if (!keyId || !keySecret) {
-      console.error("Razorpay credentials missing");
-      return Response.json({ error: "Payment gateway not configured" }, { status: 500 });
     }
 
     // Razorpay amount is in paise (smallest currency unit)
