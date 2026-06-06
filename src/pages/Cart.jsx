@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/api/supabaseClient";
+console.log("Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
 
 // Load Razorpay script dynamically
 function loadRazorpayScript() {
@@ -136,6 +137,13 @@ export default function Cart() {
     let rzpOrder;
     try {
       console.log('💳 Calling razorpay-create-order with amount:', total);
+      
+      // Debug: Log session and environment
+      const session = await supabase.auth.getSession();
+      console.log("🔐 Session:", session);
+      console.log("📍 Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
+      console.log("🔑 Supabase Anon Key exists:", !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+      console.log("📦 Supabase Client:", supabase);
       
       // Verify supabase client is properly initialized
       if (!supabase || !supabase.functions || !supabase.functions.invoke) {

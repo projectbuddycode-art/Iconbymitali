@@ -385,6 +385,24 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+[functions.razorpayCreateOrder]
+verify_jwt = false
+
+[functions.razorpayVerifyPayment]
+verify_jwt = false
+
+[functions.razorpayWebhook]
+verify_jwt = false
+
+[functions.shiprocketCreateOrder]
+verify_jwt = false
+
+[functions.shiprocketTrack]
+verify_jwt = false
+
+[functions.getShipmentDetails]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
