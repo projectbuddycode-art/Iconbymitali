@@ -8,7 +8,7 @@ import ShiprocketTracker from "@/components/tracking/ShiprocketTracker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/api/supabaseClient";
 
 // Load Razorpay script dynamically
 function loadRazorpayScript() {
@@ -132,19 +132,39 @@ export default function Cart() {
       return;
     }
 
-    // Create Razorpay order via backend
-    let rzpOrder;
-    try {
-      const res = await base44.functions.invoke("razorpayCreateOrder", { amount: total });
-      rzpOrder = res.data;
-      if (!rzpOrder?.order_id || !rzpOrder?.key_id) {
-        throw new Error(rzpOrder?.error || "Invalid order response from payment gateway");
-      }
-    } catch (err) {
-      setPaymentError("Could not initiate payment: " + err.message);
-      setIsSubmitting(false);
-      return;
+    // Create Razorpay order via Supabase Edge Function
+let rzpOrder;
+
+try {
+  const { data, error } = await supabase.functions.invoke(
+    "razorpayCreateOrder",
+    {
+      body: {
+        amount: total,
+      },
     }
+  );
+
+  if (error) throw error;
+
+  rzpOrder = data;
+
+  if (!rzpOrder?.order_id || !rzpOrder?.key_id) {
+    throw new Error(
+      rzpOrder?.error || "Invalid order response from payment gateway"
+    );
+  }
+} catch (err) {
+  console.error("Razorpay Create Order Error:", err);
+
+  setPaymentError(
+    "Could not initiate payment: " +
+      (err?.message || "Unknown error")
+  );
+
+  setIsSubmitting(false);
+  return;
+}
 
     // Capture order data NOW before cart state can change
     const capturedOrderData = buildOrderData();
@@ -177,13 +197,19 @@ export default function Cart() {
       handler: async (response) => {
         restoreAlert();
         try {
-          const verifyRes = await base44.functions.invoke("razorpayVerifyPayment", {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            orderData: capturedOrderData,
-          });
+          const { data, error } = await supabase.functions.invoke(
+  "razorpayVerifyPayment",
+  {
+    body: {
+      razorpay_order_id: response.razorpay_order_id,
+      razorpay_payment_id: response.razorpay_payment_id,
+      razorpay_signature: response.razorpay_signature,
+      orderData: capturedOrderData,
+    },
+  }
+);
 
+if (error) throw error;
           const data = verifyRes.data;
 
           if (data?.payment_verified && data?.order_saved) {

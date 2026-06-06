@@ -1,9 +1,69 @@
-# Supabase Edge Functions Deployment Guide
+# 🚀 Supabase Edge Functions Deployment - URGENT FIX
 
-## Overview
+## ❌ ISSUE FOUND: Functions NOT Deployed (404 Error)
+
+**Problem:** The razorpay-create-order edge function is returning 404 Not Found
+
+```
+HTTP Status: 404 NOT FOUND
+CORS Preflight Failed: Response to preflight request doesn't pass access control check
+Reason: Edge function not deployed
+```
+
+**Solution:** Deploy all edge functions now using Supabase CLI
+
+---
+
+## 🔧 Quick Fix (5 minutes)
+
+### Step 1: Install/Verify Supabase CLI
+
+```powershell
+npm install -g supabase
+supabase --version
+```
+
+### Step 2: Login to Supabase
+
+```powershell
+supabase login
+```
+
+### Step 3: Link Your Project
+
+```powershell
+cd c:\Users\dubey\Downloads\Iconbymitali-main
+supabase link --project-ref apmiabucenklyfaewoun
+```
+
+### Step 4: Deploy All Functions (THIS IS THE CRITICAL STEP)
+
+```powershell
+supabase functions deploy --no-verify
+```
+
+Watch for output showing all functions deployed:
+```
+✓ Function "razorpay-create-order" deployed
+✓ Function "razorpay-verify-payment" deployed
+✓ Function "shiprocket-create-order" deployed
+...
+```
+
+### Step 5: Verify Deployment
+
+```powershell
+supabase functions list
+```
+
+All functions should show ✅ ACTIVE
+
+---
+
+## 📋 Functions to Deploy
 
 You have 6 Edge Functions that need to be deployed to Supabase:
-1. **razorpay-create-order** - Create payment orders
+1. **razorpay-create-order** - Create payment orders (404 ERROR - NEEDS DEPLOY)
 2. **razorpay-verify-payment** - Verify payment signatures
 3. **razorpay-webhook** - Handle Razorpay webhook events
 4. **shiprocket-create-order** - Create shipments
