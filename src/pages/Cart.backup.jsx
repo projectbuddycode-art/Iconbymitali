@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/api/supabaseClient";
+console.log("Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
 
 // Load Razorpay script dynamically
 function loadRazorpayScript() {
@@ -122,49 +123,204 @@ export default function Cart() {
    };
 
   const submitRazorpay = async () => {
-    setIsSubmitting(true);
-    setPaymentError("");
+    
 
-    const loaded = await loadRazorpayScript();
-    if (!loaded) {
-      setPaymentError("Failed to load Razorpay. Please check your connection.");
+  setIsSubmitting(true);
+
+  setPaymentError("");
+
+
+
+  try {
+
+    console.log("Creating payment link for amount:", total);
+
+
+
+    const { data, error } = await supabase.functions.invoke(
+
+      "create-payment-link",
+
+      {
+
+        body: {
+
+          amount: total,
+
+          customerName: formData.name,
+
+          email: formData.email,
+
+          phone: formData.phone,
+
+        },
+
+      }
+
+    );
+
+
+
+    console.log("Payment Link Response:", data);
+
+
+
+    if (error) {
+
+      throw new Error(error.message || "Failed to create payment link");
+
+    }
+
+
+
+    if (!data?.payment_url) {
+
+      throw new Error("Payment URL not received");
+
+    }
+
+
+
+    const orderNum = `ICON-${Date.now()
+
+      .toString()
+
+      .slice(-8)}`;
+
+
+
+    await createOrder({
+
+      order_number: orderNum,
+
+      ...buildOrderData(),
+
+      status: "pending",
+
+      payment_status: "pending",
+
+    });
+
+
+
+    window.location.href = data.payment_url;
+
+
+
+  } catch (err) {
+
+    console.error(err);
+
+
+
+    setPaymentError(
+
+      "Could not generate payment link: " +
+
+      (err?.message || "Unknown error")
+
+    );
+
+
+
+    setIsSubmitting(false);
+
+  }
+
+};
+    
+  
+    );
+
+    console.log("Payment Link Response:", data);
+    console.log("Payment Link Error:", error);
+
+    if (error) {
+      throw new Error(error.message || "Failed to create payment link");
+    }
+
+    if (!data?.payment_url) {
+      throw new Error("Payment URL not received from Razorpay");
+    }
+
+    // Save order before redirecting
+    const orderNum = `ICON-${Date.now()
+      .toString()
+      .slice(-8)}`;
+
+    await createOrder({
+      order_number: orderNum,
+      ...buildOrderData(),
+      status: "pending",
+      payment_status: "pending",
+    });
+
+    // Redirect customer to Razorpay Payment Page
+    window.location.href = data.payment_url;
+
+  } catch (err) {
+    console.error("Payment Link Error:", err);
+
+    setPaymentError(
+      "Could not generate payment link: " +
+      (err?.message || "Unknown error")
+    );
+
+    setIsSubmitting(false);
+  }
+};
+    }
+
+    // Create Razorpay order via backend
+    let rzpOrder;
+    try {
+      console.log('💳 Calling razorpay-create-order with amount:', total);
+      
+      // Debug: Log session and environment
+      const session = await supabase.auth.getSession();
+      console.log("🔐 Session:", session);
+      console.log("📍 Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
+      console.log("🔑 Supabase Anon Key exists:", !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+      console.log("📦 Supabase Client:", supabase);
+      
+      // Verify supabase client is properly initialized
+      if (!supabase || !supabase.functions || !supabase.functions.invoke) {
+        throw new Error('Supabase client not properly initialized. Check that VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env.local');
+      }
+      
+      const res = await supabase.functions.invoke("razorpay-create-order", { 
+        body: { amount: total } 
+      });
+
+      console.log('💳 Razorpay function response:', res);
+      
+      // Handle both direct response and wrapped response
+      rzpOrder = res.data || res;
+      
+      console.log('💳 Extracted order data:', rzpOrder);
+      
+      // Check for errors
+      if (rzpOrder?.error) {
+        throw new Error(rzpOrder.error);
+      }
+      
+      if (!rzpOrder?.order_id) {
+        console.error('❌ Missing order_id in response:', rzpOrder);
+        throw new Error(`Invalid order response: missing order_id. Got: ${JSON.stringify(rzpOrder)}`);
+      }
+      
+      if (!rzpOrder?.key_id) {
+        console.error('❌ Missing key_id in response:', rzpOrder);
+        throw new Error(`Invalid order response: missing key_id. Got: ${JSON.stringify(rzpOrder)}`);
+      }
+      
+      console.log('✅ Order created successfully:', rzpOrder.order_id);
+    } catch (err) {
+      console.error('❌ Payment initiation error:', err);
+      setPaymentError("Could not initiate payment: " + err.message);
       setIsSubmitting(false);
       return;
     }
-
-    // Create Razorpay order via Supabase Edge Function
-let rzpOrder;
-
-try {
-  const { data, error } = await supabase.functions.invoke(
-    "razorpayCreateOrder",
-    {
-      body: {
-        amount: total,
-      },
-    }
-  );
-
-  if (error) throw error;
-
-  rzpOrder = data;
-
-  if (!rzpOrder?.order_id || !rzpOrder?.key_id) {
-    throw new Error(
-      rzpOrder?.error || "Invalid order response from payment gateway"
-    );
-  }
-} catch (err) {
-  console.error("Razorpay Create Order Error:", err);
-
-  setPaymentError(
-    "Could not initiate payment: " +
-      (err?.message || "Unknown error")
-  );
-
-  setIsSubmitting(false);
-  return;
-}
 
     // Capture order data NOW before cart state can change
     const capturedOrderData = buildOrderData();
@@ -197,32 +353,43 @@ try {
       handler: async (response) => {
         restoreAlert();
         try {
-          const { data, error } = await supabase.functions.invoke(
-  "razorpayVerifyPayment",
-  {
-    body: {
-      razorpay_order_id: response.razorpay_order_id,
-      razorpay_payment_id: response.razorpay_payment_id,
-      razorpay_signature: response.razorpay_signature,
-      orderData: capturedOrderData,
-    },
-  }
-);
+          console.log('🔐 Verifying payment with signature:', response.razorpay_signature);
+          
+          const verifyRes = await supabase.functions.invoke("razorpay-verify-payment", {
+            body: {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderData: capturedOrderData,
+            }
+          });
 
-if (error) throw error;
-          const data = verifyRes.data;
+          console.log('🔐 Verification response:', verifyRes);
+          
+          // Handle both direct response and wrapped response
+          const data = verifyRes.data || verifyRes;
+          
+          console.log('🔐 Extracted verification data:', data);
+
+          if (data?.error) {
+            throw new Error(data.error);
+          }
 
           if (data?.payment_verified && data?.order_saved) {
+            console.log('✅ Payment verified and order saved!');
             setOrderNumber(data.order_number);
             if (data?.shiprocket_awb) setShiprocketAwb(data.shiprocket_awb);
             updateCart([]);
             setStep("success");
           } else if (data?.payment_verified && !data?.order_saved) {
+            console.warn('⚠️ Payment verified but order save failed:', data);
             setPaymentError("Payment successful but order save failed. Please contact support with payment ID: " + response.razorpay_payment_id);
           } else {
+            console.error('❌ Payment verification returned unexpected status:', data);
             setPaymentError(data?.error || "Payment verification failed. Please contact support.");
           }
         } catch (err) {
+          console.error('❌ Payment handler error:', err);
           setPaymentError("Payment processing error. If amount was deducted, contact support with payment ID: " + response.razorpay_payment_id);
         }
         setIsSubmitting(false);
