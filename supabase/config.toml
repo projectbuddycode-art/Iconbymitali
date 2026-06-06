@@ -385,22 +385,22 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
-[functions.razorpayCreateOrder]
+[functions."razorpay-create-order"]
 verify_jwt = false
 
-[functions.razorpayVerifyPayment]
+[functions."razorpay-verify-payment"]
 verify_jwt = false
 
-[functions.razorpayWebhook]
+[functions."razorpay-webhook"]
 verify_jwt = false
 
-[functions.shiprocketCreateOrder]
+[functions."shiprocket-create-order"]
 verify_jwt = false
 
-[functions.shiprocketTrack]
+[functions."shiprocket-track"]
 verify_jwt = false
 
-[functions.getShipmentDetails]
+[functions."get-shipment-details"]
 verify_jwt = false
 
 [analytics]
