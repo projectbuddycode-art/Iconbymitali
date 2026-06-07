@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encodeBase64 } from "https://deno.land/std@0.208.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,11 +34,15 @@ serve(async (req) => {
       throw new Error("Razorpay configuration missing");
     }
 
+    // Encode credentials for Basic auth
+    const credentials = `${razorpayKeyId}:${razorpayKeySecret}`;
+    const encodedCredentials = encodeBase64(credentials);
+
     // Create Razorpay order
     const razorpayResponse = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
       headers: {
-        "Authorization": `Basic ${btoa(`${razorpayKeyId}:${razorpayKeySecret}`)}`,
+        "Authorization": `Basic ${encodedCredentials}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

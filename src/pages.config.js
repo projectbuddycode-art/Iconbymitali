@@ -49,6 +49,9 @@
  */
 import About from './pages/About';
 import CheckoutTest from './pages/CheckoutTest';
+import Checkout from './pages/Checkout';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentFailure from './pages/PaymentFailure';
 import AdminDashboard from './pages/AdminDashboard';
 import Blog from './pages/Blog';
 import Cart from './pages/Cart';
@@ -65,8 +68,11 @@ export const PAGES = {
     "AdminDashboard": AdminDashboard,
     "Blog": Blog,
     "Cart": Cart,
+    "Checkout": Checkout,
     "Home": Home,
     "Lookbook": Lookbook,
+    "PaymentFailure": PaymentFailure,
+    "PaymentSuccess": PaymentSuccess,
     "Policies": Policies,
     "Shop": Shop,
     "Wishlist": Wishlist,

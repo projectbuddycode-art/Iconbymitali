@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { supabaseClient } from "../api/supabaseClient";
+import { supabase } from "../api/supabaseClient";
 import "./PaymentSuccess.css";
 
 const PaymentSuccess = () => {
@@ -22,7 +22,7 @@ const PaymentSuccess = () => {
       try {
         console.log("[PaymentSuccess] Fetching order:", orderNumber);
 
-        const { data, error } = await supabaseClient
+        const { data, error } = await supabase
           .from("orders")
           .select("*")
           .eq("order_number", orderNumber)

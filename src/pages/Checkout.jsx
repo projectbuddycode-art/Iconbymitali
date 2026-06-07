@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCart } from "../hooks/useCart";
-import { supabaseClient } from "../api/supabaseClient";
+import { supabase } from "../api/supabaseClient";
 import "./Checkout.css";
 
 const Checkout = () => {
@@ -62,7 +62,7 @@ const Checkout = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseClient.auth.session()?.access_token || ""}`,
+          "Authorization": `Bearer ${supabase.auth.session()?.access_token || ""}`,
         },
         body: JSON.stringify({
           amount: total,
@@ -153,7 +153,7 @@ const Checkout = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseClient.auth.session()?.access_token || ""}`,
+          "Authorization": `Bearer ${supabase.auth.session()?.access_token || ""}`,
         },
         body: JSON.stringify({
           razorpay_order_id,
