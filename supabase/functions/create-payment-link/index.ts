@@ -43,6 +43,8 @@ serve(async (req) => {
             sms: true,
             email: true,
           },
+          callback_url: "https://iconbymitalidhumal.com/payment-success",
+          expire_by: Math.floor(Date.now() / 1000) + 1800,
         }),
       }
     );

@@ -57,7 +57,6 @@ import Lookbook from './pages/Lookbook';
 import Policies from './pages/Policies';
 import Shop from './pages/Shop';
 import Wishlist from './pages/Wishlist';
-import PaymentCallback from './pages/PaymentCallback';
 import __Layout from './Layout.jsx';
 
 
@@ -72,7 +71,6 @@ export const PAGES = {
     "Shop": Shop,
     "Wishlist": Wishlist,
     "CheckoutTest": CheckoutTest,
-    "PaymentCallback": PaymentCallback,
 }
 
 export const pagesConfig = {

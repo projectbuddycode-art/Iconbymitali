@@ -96,6 +96,9 @@ export default function Cart() {
          order_number: orderNum,
          ...buildOrderData(),
          status: "pending",
+         payment_status: "pending",
+         payment_method: "upi",
+         upi_id: upiId,
          notes: combinedNotes,
        });
        setOrderNumber(orderNum);

@@ -13,7 +13,12 @@ Deno.serve(async (req) => {
   console.log("[webhook] Received Razorpay webhook. Body length:", rawBody.length);
 
   // --- Step 1: Verify Razorpay webhook signature ---
-  const webhookSecret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") || "iconbymitalidhumal_webhook_secure";
+  const webhookSecret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET");
+  if (!webhookSecret) {
+    console.error("[webhook] RAZORPAY_WEBHOOK_SECRET not configured");
+    return Response.json({ status: "error", message: "Webhook secret not configured" }, { status: 500 });
+  }
+
   const signature = req.headers.get("x-razorpay-signature");
 
   if (!signature) {
@@ -56,69 +61,87 @@ Deno.serve(async (req) => {
 
   console.log("[webhook] Event type:", event.event);
 
-  // Only process payment.captured events
-  if (event.event !== "payment.captured") {
+  // Only process payment.authorized events (payment link flow)
+  if (event.event !== "payment.authorized") {
     console.log("[webhook] Ignoring event:", event.event);
     return Response.json({ status: "ok", message: "Event ignored" });
   }
 
-  // --- Step 3: Extract Razorpay order_id from payload ---
+  // --- Step 3: Extract payment details ---
   const payment = event?.payload?.payment?.entity;
-  const razorpayOrderId = payment?.order_id;
   const razorpayPaymentId = payment?.id;
+  const razorpayOrderId = payment?.order_id;
   const customerEmail = payment?.email;
   const amountINR = payment?.amount ? payment.amount / 100 : null;
+  const notes = payment?.notes || {};
 
-  if (!razorpayOrderId) {
-    console.error("[webhook] No order_id in payment payload:", JSON.stringify(payment));
-    return Response.json({ status: "error", message: "No order_id in payload" }, { status: 400 });
+  if (!razorpayPaymentId || !razorpayOrderId) {
+    console.error("[webhook] Missing payment IDs:", { razorpayPaymentId, razorpayOrderId });
+    return Response.json({ status: "error", message: "Missing payment IDs" }, { status: 400 });
   }
 
-  console.log("[webhook] payment.captured — Razorpay order:", razorpayOrderId, "payment:", razorpayPaymentId, "email:", customerEmail, "amount (INR):", amountINR);
+  console.log("[webhook] payment.authorized - Payment ID:", razorpayPaymentId, "Order ID:", razorpayOrderId, "Amount:", amountINR);
 
   const base44 = createClientFromRequest(req);
 
-  // --- Step 4: Find Order in DB by razorpay_order_id ---
-  let orders;
+  // --- Step 4: Check if order already exists ---
+  let existingOrders;
   try {
-    orders = await base44.asServiceRole.entities.Order.filter({ razorpay_order_id: razorpayOrderId });
+    existingOrders = await base44.asServiceRole.entities.Order.filter({
+      razorpay_payment_id: razorpayPaymentId,
+    });
   } catch (e) {
     console.error("[webhook] DB lookup failed:", e.message);
-    return Response.json({ status: "error", message: "DB lookup failed" }, { status: 500 });
   }
 
-  if (!orders || orders.length === 0) {
-    console.warn("[webhook] No order found for razorpay_order_id:", razorpayOrderId);
-    return Response.json({ status: "ok", message: "Order not found — ignoring" });
-  }
-
-  const order = orders[0];
-  console.log("[webhook] Found order:", order.id, "order_number:", order.order_number, "payment_status:", order.payment_status);
-
-  // Idempotency: skip if already confirmed (payment_status = 'paid')
-  if (order.payment_status === "paid") {
-    console.log("[webhook] Order already marked paid. Skipping duplicate webhook.");
+  // Idempotency: if order already exists, skip
+  if (existingOrders && existingOrders.length > 0) {
+    const existingOrder = existingOrders[0];
+    console.log("[webhook] Order already exists:", existingOrder.order_number, "- skipping duplicate webhook");
     return Response.json({ status: "ok", message: "Already processed" });
   }
 
-  // --- Step 5: Mark order as paid + confirmed ---
+  // --- Step 5: Create new order from payment data ---
+  const orderNum = `ICON-${Date.now().toString().slice(-8)}`;
+  
+  // Extract order data from Razorpay metadata (stored by frontend in notes)
+  const orderData = {
+    customer_name: notes.customer_name || customerEmail?.split('@')[0] || 'Customer',
+    customer_email: customerEmail || notes.customer_email || '',
+    customer_phone: notes.customer_phone || '',
+    items: notes.items || [],
+    total_amount: amountINR || 0,
+    shipping_address: notes.shipping_address || {},
+    notes: [
+      notes.order_notes,
+      `Razorpay Payment ID: ${razorpayPaymentId}`,
+      `Razorpay Order ID: ${razorpayOrderId}`,
+    ]
+      .filter(Boolean)
+      .join(' | '),
+  };
+
   try {
-    await base44.asServiceRole.entities.Order.update(order.id, {
-      payment_status: "paid",
+    const createdOrder = await base44.asServiceRole.entities.Order.create({
+      order_number: orderNum,
+      ...orderData,
       status: "confirmed",
+      payment_status: "paid",
+      razorpay_order_id: razorpayOrderId,
+      razorpay_payment_id: razorpayPaymentId,
     });
-    console.log("[webhook] Order updated: payment_status=paid, status=confirmed");
+
+    console.log("[webhook] Order created:", orderNum, "DB ID:", createdOrder.id);
+
+    // --- Step 6: Trigger shipment creation ---
+    base44.asServiceRole.functions
+      .invoke("createShipment", { order_id: createdOrder.id })
+      .then(() => console.log("[webhook] createShipment triggered for order:", createdOrder.id))
+      .catch((e) => console.error("[webhook] createShipment failed:", e.message));
+
+    return Response.json({ status: "ok", message: "Order created and confirmed", order_id: createdOrder.id, order_number: orderNum });
   } catch (e) {
-    console.error("[webhook] Failed to update order payment status:", e.message);
-    return Response.json({ status: "error", message: "Order update failed" }, { status: 500 });
+    console.error("[webhook] Order creation failed:", e.message);
+    return Response.json({ status: "error", message: "Order creation failed: " + e.message }, { status: 500 });
   }
-
-  // --- Step 6: Trigger shipment creation (fire and forget) ---
-  // Use waitUntil pattern via a detached promise — return 200 to Razorpay immediately
-  const shipmentPromise = base44.asServiceRole.functions.invoke("createShipment", { order_id: order.id });
-  shipmentPromise
-    .then(() => console.log("[webhook] createShipment completed for order:", order.id))
-    .catch((e) => console.error("[webhook] createShipment failed for order:", order.id, e.message));
-
-  return Response.json({ status: "ok", message: "Webhook processed" });
 });
