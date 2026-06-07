@@ -11,10 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/api/supabaseClient";
 
 export default function Cart() {
-  React.useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
   const [cart, setCart] = useState([]);
   const [step, setStep] = useState("cart");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,6 +23,28 @@ export default function Cart() {
     name: "", email: "", phone: "",
     street: "", city: "", state: "", pincode: "", notes: "",
   });
+
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+    
+    // Check if coming from payment callback
+    const params = new URLSearchParams(window.location.search);
+    const stepParam = params.get("step");
+    const orderNumberParam = params.get("orderNumber");
+    
+    if (stepParam === "success") {
+      // Try to get order number from URL param or localStorage
+      const displayOrderNumber = orderNumberParam || localStorage.getItem("lastOrderNumber");
+      if (displayOrderNumber) {
+        setStep("success");
+        setOrderNumber(displayOrderNumber);
+        // Clear localStorage
+        localStorage.removeItem("lastOrderNumber");
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const savedCart = JSON.parse(localStorage.getItem("icon_cart") || "[]");
