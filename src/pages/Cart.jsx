@@ -117,6 +117,7 @@ export default function Cart() {
 
     try {
       // Call Edge Function to create payment link
+      // ⚠️ DO NOT create order here - webhook will create it after payment verification
       const { data, error } = await supabase.functions.invoke("create-payment-link", {
         body: {
           amount: total,
@@ -134,15 +135,7 @@ export default function Cart() {
         throw new Error("Payment URL not received");
       }
 
-      // Create order in database
-      const orderNum = `ICON-${Date.now().toString().slice(-8)}`;
-      await createOrder({
-        order_number: orderNum,
-        ...buildOrderData(),
-        status: "pending",
-      });
-
-      // Redirect to payment link
+      // Redirect to payment link - order will be created by webhook after payment confirmed
       window.location.href = data.payment_url;
     } catch (err) {
       console.error("Payment error:", err);
