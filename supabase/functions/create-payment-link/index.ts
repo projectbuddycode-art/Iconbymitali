@@ -43,8 +43,9 @@ serve(async (req) => {
             sms: true,
             email: true,
           },
-          callback_url: "https://iconbymitalidhumal.com/payment-success",
           expire_by: Math.floor(Date.now() / 1000) + 1800,
+          // Note: callback_url not supported in Payment Links API
+          // Instead use the short_url returned and handle redirect manually
         }),
       }
     );
