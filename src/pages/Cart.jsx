@@ -96,7 +96,6 @@ export default function Cart() {
          order_number: orderNum,
          ...buildOrderData(),
          status: "pending",
-         payment_status: "pending",
          notes: combinedNotes,
        });
        setOrderNumber(orderNum);
@@ -138,7 +137,6 @@ export default function Cart() {
         order_number: orderNum,
         ...buildOrderData(),
         status: "pending",
-        payment_status: "pending",
       });
 
       // Redirect to payment link

@@ -22,13 +22,14 @@ export const getLookbookProducts = async () => {
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
 export const createOrder = async (orderData) => {
-  const { data, error } = await supabase
-    .from('orders')
-    .insert([orderData])
-    .select();
+  // Use Edge Function to bypass RLS restrictions
+  const { data, error } = await supabase.functions.invoke('create-order', {
+    body: { orderData },
+  });
   
-  if (error) throw error;
-  return data[0];
+  if (error) throw new Error(error.message || 'Failed to create order');
+  if (!data?.order) throw new Error('Order creation failed');
+  return data.order;
 };
 
 export const createRazorpayOrder = async (amount) => {
