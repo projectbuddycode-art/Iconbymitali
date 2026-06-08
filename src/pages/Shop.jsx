@@ -17,10 +17,23 @@ export default function Shop() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [heroMedia, setHeroMedia] = useState({ type: "image", url: "" });
 
-  const { data: products = [], isLoading } = useQuery({
+  const { data: products = [], isLoading, error } = useQuery({
     queryKey: ["products"],
     queryFn: getProducts,
+    staleTime: 0, // Always refetch on mount
+    gcTime: 0, // Don't cache results
+    retry: 3,
   });
+
+  // Log errors for debugging
+  useEffect(() => {
+    if (error) {
+      console.error("[Shop] Error loading products:", error);
+    }
+    if (products && products.length > 0) {
+      console.log("[Shop] ✅ Loaded products:", products.length);
+    }
+  }, [products, error]);
 
   useEffect(() => {
     getPageSettings("shop").then((settings) => {

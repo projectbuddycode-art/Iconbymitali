@@ -2,12 +2,23 @@ import { supabase } from '@/api/supabaseClient';
 
 // ─── Products ────────────────────────────────────────────────────────────────
 export const getProducts = async () => {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*');
-  
-  if (error) throw error;
-  return data;
+  try {
+    console.log("[API] Fetching products from Supabase...");
+    const { data, error } = await supabase
+      .from('products')
+      .select('*');
+    
+    if (error) {
+      console.error("[API] Supabase error:", error);
+      throw error;
+    }
+    
+    console.log("[API] ✅ Products fetched:", data?.length || 0);
+    return data || [];
+  } catch (err) {
+    console.error("[API] Failed to fetch products:", err.message);
+    throw err;
+  }
 };
 
 export const getLookbookProducts = async () => {
