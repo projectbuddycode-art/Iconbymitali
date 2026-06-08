@@ -116,29 +116,100 @@ export default function Cart() {
     setPaymentError("");
 
     try {
-      // Call Edge Function to create payment link
-      // ⚠️ DO NOT create order here - webhook will create it after payment verification
-      const { data, error } = await supabase.functions.invoke("create-payment-link", {
+      // Step 1: Get Razorpay Key ID
+      const { data: keyData, error: keyError } = await supabase.functions.invoke("create-order", {
         body: {
           amount: total,
           customerName: formData.name,
-          email: formData.email,
-          phone: formData.phone,
+          customerEmail: formData.email,
+          customerPhone: formData.phone,
         },
       });
 
-      if (error) {
-        throw new Error(error.message || "Failed to create payment link");
+      if (keyError) throw new Error(keyError.message || "Failed to create order");
+      if (!keyData?.razorpay_order_id) throw new Error("Order ID not received from Razorpay");
+
+      console.log("[Cart] ✅ Razorpay Order ID:", keyData.razorpay_order_id);
+
+      // Load Razorpay script if not already loaded
+      if (!window.Razorpay) {
+        await new Promise((resolve) => {
+          const script = document.createElement("script");
+          script.src = "https://checkout.razorpay.com/v1/checkout.js";
+          script.async = true;
+          script.onload = resolve;
+          document.body.appendChild(script);
+        });
       }
 
-      if (!data?.payment_url) {
-        throw new Error("Payment URL not received");
-      }
+      // Step 2: Store order data for verification later
+      const orderData = buildOrderData();
+      sessionStorage.setItem("pendingOrder", JSON.stringify({
+        razorpay_order_id: keyData.razorpay_order_id,
+        amount: keyData.amount,
+        ...orderData,
+      }));
 
-      // Redirect to payment link - order will be created by webhook after payment confirmed
-      window.location.href = data.payment_url;
+      // Step 3: Open Razorpay modal
+      const options = {
+        key: keyData.key_id,
+        amount: keyData.amount,
+        currency: "INR",
+        name: "ICON by Mitali Dhumal",
+        description: "Fashion Order",
+        image: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/697e263b19f8bcf929a8b036/010f7c59a_WhatsAppImage2026-02-05at020120.jpg",
+        order_id: keyData.razorpay_order_id,
+        prefill: {
+          name: formData.name,
+          email: formData.email,
+          contact: formData.phone,
+        },
+        theme: { color: "#414A37" },
+        handler: async (response) => {
+          try {
+            // Step 4: Verify payment signature
+            const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-payment", {
+              body: {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderData: orderData,
+              },
+            });
+
+            if (verifyError) throw new Error(verifyError.message || "Payment verification failed");
+
+            console.log("[Cart] ✅ Payment verified successfully. Order:", verifyData.order_id);
+
+            setOrderNumber(verifyData.order_id);
+            sessionStorage.removeItem("pendingOrder");
+            updateCart([]);
+            setStep("success");
+          } catch (err) {
+            console.error("[Cart] Payment verification error:", err);
+            setPaymentError("Payment verified but order creation failed: " + (err?.message || ""));
+            setIsSubmitting(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            console.log("[Cart] Razorpay modal closed");
+            setIsSubmitting(false);
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response) => {
+        const errMsg = response?.error?.description || "Payment declined";
+        console.error("[Cart] Razorpay payment failed:", errMsg);
+        setPaymentError(`Payment failed: ${errMsg}`);
+        setIsSubmitting(false);
+      });
+
+      rzp.open();
     } catch (err) {
-      console.error("Payment error:", err);
+      console.error("[Cart] Payment error:", err);
       setPaymentError("Could not initiate payment: " + (err?.message || "Unknown error"));
       setIsSubmitting(false);
     }
