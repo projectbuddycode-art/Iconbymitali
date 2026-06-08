@@ -19,6 +19,27 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Debug endpoint to check table exists
+  if (req.method === "GET") {
+    try {
+      const { data, error } = await supabase.from("orders").select("count", { count: "exact" });
+      return new Response(
+        JSON.stringify({
+          debug: "Table check",
+          table_exists: !error,
+          error: error?.message,
+          count: data?.length,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String(e) }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
@@ -36,7 +57,6 @@ serve(async (req) => {
       products,
     } = await req.json();
 
-    // Validate inputs
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       throw new Error("Missing payment verification details");
     }
@@ -44,6 +64,12 @@ serve(async (req) => {
     if (!razorpayKeySecret) {
       console.error("[verify-payment] RAZORPAY_KEY_SECRET not configured");
       throw new Error("Server configuration error");
+    }
+
+    // Parse amount as number
+    const parsedAmount = typeof amount === "string" ? parseFloat(amount) : Number(amount);
+    if (!parsedAmount || parsedAmount <= 0) {
+      throw new Error(`Invalid amount: ${amount}`);
     }
 
     // Verify Razorpay signature using HMAC-SHA256
@@ -61,6 +87,15 @@ serve(async (req) => {
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
     // Save order to database
+    console.log("[verify-payment] Attempting to save order with fields:", {
+      order_number: orderNumber,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      amount: parsedAmount,
+      payment_status: "paid",
+    });
+
     const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .insert([
@@ -70,7 +105,7 @@ serve(async (req) => {
           customer_email: customerEmail,
           customer_phone: customerPhone,
           shipping_address: shippingAddress || {},
-          amount: amount || 0,
+          amount: parsedAmount,
           razorpay_order_id,
           razorpay_payment_id,
           razorpay_signature,
@@ -82,8 +117,12 @@ serve(async (req) => {
       .select();
 
     if (orderError) {
-      console.error("[verify-payment] Database error:", orderError);
-      throw new Error(`Failed to save order: ${orderError.message}`);
+      console.error("[verify-payment] Database insert error:", {
+        message: orderError.message,
+        code: orderError.code,
+        details: orderError.details,
+      });
+      throw new Error(`Failed to save order: ${orderError.message}. Code: ${orderError.code}`);
     }
 
     const savedOrder = orderData[0];
@@ -111,12 +150,17 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("[verify-payment] ❌ Error:", error.message);
+    console.error("[verify-payment] ❌ Error:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      type: typeof error,
+    });
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
+        details: error instanceof Error ? error.stack : undefined,
       }),
       {
         status: 400,
