@@ -27,32 +27,57 @@ serve(async (req) => {
 
     // Generate HTML email
     const emailHtml = generateOrderEmailHtml(order);
+    
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
-    // For production, integrate with:
-    // - SendGrid: https://sendgrid.com
-    // - Mailgun: https://mailgun.com
-    // - AWS SES: https://aws.amazon.com/ses
-    // - Resend: https://resend.com
+    // Try to send via Resend if configured
+    if (resendApiKey) {
+      try {
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "orders@iconbymitalidhumal.com",
+            to: order.customer_email,
+            subject: "ICON by Mitali — Order Confirmation",
+            html: emailHtml,
+          }),
+        });
 
-    // Placeholder: Log the email that would be sent
-    console.log("[send-order-email] Email ready for:", order.customer_email);
-    console.log("[send-order-email] Subject: ICON by Mitali - Order Confirmation");
+        if (response.ok) {
+          const data = await response.json();
+          console.log("[send-order-email] ✅ Email sent via Resend:", data.id);
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: "Order confirmation email sent",
+              email: order.customer_email,
+              provider: "resend",
+            }),
+            {
+              status: 200,
+              headers: {
+                ...corsHeaders,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+        } else {
+          const error = await response.json();
+          console.error("[send-order-email] Resend API error:", error);
+          throw new Error(`Resend error: ${error.message}`);
+        }
+      } catch (resendError) {
+        console.warn("[send-order-email] Resend failed, falling back to log:", resendError.message);
+      }
+    }
 
-    // TODO: Integrate actual email service
-    // Example with Resend:
-    // const response = await fetch('https://api.resend.com/emails', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     from: 'orders@iconbymitalidhumal.com',
-    //     to: order.customer_email,
-    //     subject: 'Your ICON by Mitali Order Confirmation',
-    //     html: emailHtml,
-    //   }),
-    // });
+    // Fallback: Log the email that would be sent (if Resend not configured or failed)
+    console.log("[send-order-email] 📧 Email ready for:", order.customer_email);
+    console.log("[send-order-email] 📧 Subject: ICON by Mitali — Order Confirmation");
 
     return new Response(
       JSON.stringify({
