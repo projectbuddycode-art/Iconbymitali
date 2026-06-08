@@ -21,17 +21,39 @@ serve(async (req) => {
   try {
     const { amount, customerName, customerEmail, customerPhone, shippingAddress, products } = await req.json();
 
+    console.log("[create-order] Request received with amount:", amount);
+
     // Validate inputs
-    if (!amount || !customerName || !customerEmail || !customerPhone) {
-      throw new Error("Missing required fields: amount, customerName, customerEmail, customerPhone");
+    if (!amount || amount <= 0) {
+      return new Response(
+        JSON.stringify({ error: "Invalid amount. Must be greater than 0." }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+    if (!customerName || !customerEmail || !customerPhone) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields: customerName, customerEmail, customerPhone" }),
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
     const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
 
+    console.log("[create-order] Checking environment variables:");
+    console.log("[create-order] RAZORPAY_KEY_ID present:", !!razorpayKeyId);
+    console.log("[create-order] RAZORPAY_KEY_SECRET present:", !!razorpayKeySecret);
+
     if (!razorpayKeyId || !razorpayKeySecret) {
-      console.error("[create-order] Missing Razorpay credentials");
-      throw new Error("Razorpay configuration missing");
+      console.error("[create-order] FAILED: Missing Razorpay credentials!");
+      console.error("[create-order] Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Supabase project settings");
+      return new Response(
+        JSON.stringify({
+          error: "Razorpay credentials not configured. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to Supabase environment variables.",
+          details: "Check Supabase Dashboard > Project Settings > Edge Functions > Environment Variables"
+        }),
+        { status: 500, headers: corsHeaders }
+      );
     }
 
     // Encode credentials for Basic auth
@@ -39,6 +61,8 @@ serve(async (req) => {
     const encodedCredentials = encodeBase64(credentials);
 
     // Create Razorpay order
+    console.log("[create-order] Calling Razorpay API with amount:", amount, "INR");
+    
     const razorpayResponse = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
       headers: {
@@ -57,10 +81,27 @@ serve(async (req) => {
       }),
     });
 
+    console.log("[create-order] Razorpay API response status:", razorpayResponse.status);
+
     if (!razorpayResponse.ok) {
-      const errorData = await razorpayResponse.json();
-      console.error("[create-order] Razorpay API error:", errorData);
-      throw new Error(`Razorpay order creation failed: ${errorData.description || "Unknown error"}`);
+      let errorMessage = "Unknown error";
+      try {
+        const errorData = await razorpayResponse.json();
+        errorMessage = errorData.description || JSON.stringify(errorData);
+      } catch (e) {
+        const text = await razorpayResponse.text();
+        errorMessage = text;
+      }
+      
+      console.error("[create-order] Razorpay API error:", errorMessage);
+      return new Response(
+        JSON.stringify({
+          error: `Razorpay order creation failed`,
+          details: errorMessage,
+          status: razorpayResponse.status
+        }),
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     const razorpayOrder = await razorpayResponse.json();
