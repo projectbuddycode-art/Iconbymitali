@@ -40,17 +40,15 @@ serve(async (req) => {
     const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
     const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
 
-    console.log("[create-order] Checking environment variables:");
     console.log("[create-order] RAZORPAY_KEY_ID present:", !!razorpayKeyId);
     console.log("[create-order] RAZORPAY_KEY_SECRET present:", !!razorpayKeySecret);
 
     if (!razorpayKeyId || !razorpayKeySecret) {
-      console.error("[create-order] FAILED: Missing Razorpay credentials!");
-      console.error("[create-order] Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Supabase project settings");
+      console.error("[create-order] ❌ Missing Razorpay credentials in environment");
       return new Response(
         JSON.stringify({
-          error: "Razorpay credentials not configured. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to Supabase environment variables.",
-          details: "Check Supabase Dashboard > Project Settings > Edge Functions > Environment Variables"
+          error: "Razorpay not configured. Contact support.",
+          status: "CONFIG_ERROR"
         }),
         { status: 500, headers: corsHeaders }
       );
