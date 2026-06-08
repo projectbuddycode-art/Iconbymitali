@@ -167,21 +167,38 @@ export default function Cart() {
         theme: { color: "#414A37" },
         handler: async (response) => {
           try {
-            // Step 4: Verify payment signature
+            // Step 4: Verify payment signature - send correctly formatted data
             const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-payment", {
               body: {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                orderData: orderData,
+                amount: keyData.amount,
+                customerName: formData.name,
+                customerEmail: formData.email,
+                customerPhone: formData.phone,
+                shippingAddress: {
+                  street: formData.street,
+                  city: formData.city,
+                  state: formData.state,
+                  pincode: formData.pincode,
+                  country: "India",
+                },
+                products: cart.map((item) => ({
+                  name: item.product_name,
+                  productId: item.product_id,
+                  size: item.size,
+                  quantity: item.quantity,
+                  price: item.price,
+                })),
               },
             });
 
             if (verifyError) throw new Error(verifyError.message || "Payment verification failed");
 
-            console.log("[Cart] ✅ Payment verified successfully. Order:", verifyData.order_id);
+            console.log("[Cart] ✅ Payment verified successfully. Order:", verifyData.order_number);
 
-            setOrderNumber(verifyData.order_id);
+            setOrderNumber(verifyData.order_number);
             sessionStorage.removeItem("pendingOrder");
             updateCart([]);
             setStep("success");
