@@ -58,11 +58,13 @@ const Checkout = () => {
       console.log("[Checkout] Creating Razorpay order...");
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      console.log("[Checkout] Supabase URL:", supabaseUrl);
+      console.log("[Checkout] Request body:", { amount: total, customerName: formData.fullName });
+
       const response = await fetch(`${supabaseUrl}/functions/v1/create-order`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabase.auth.session()?.access_token || ""}`,
         },
         body: JSON.stringify({
           amount: total,
@@ -81,8 +83,16 @@ const Checkout = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create Razorpay order");
+        let errorMessage = "Failed to create Razorpay order";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text || `HTTP ${response.status}`;
+        }
+        console.error(`[Checkout] Edge Function Error (${response.status}):`, errorMessage);
+        throw new Error(`Edge Function Error: ${errorMessage}`);
       }
 
       const { razorpay_order_id, key_id } = await response.json();
@@ -153,7 +163,6 @@ const Checkout = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabase.auth.session()?.access_token || ""}`,
         },
         body: JSON.stringify({
           razorpay_order_id,
@@ -175,8 +184,16 @@ const Checkout = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Payment verification failed");
+        let errorMessage = "Payment verification failed";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (e) {
+          const text = await response.text();
+          errorMessage = text || `HTTP ${response.status}`;
+        }
+        console.error(`[Checkout] Verification Error (${response.status}):`, errorMessage);
+        throw new Error(`Verification failed: ${errorMessage}`);
       }
 
       const { order_number } = await response.json();
